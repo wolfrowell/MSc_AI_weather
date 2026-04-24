@@ -1,5 +1,6 @@
 # ai_weather
 Pesquisa de Mestrado em Ciência da Computação (PPGCC-PUCRS) - "AI weather forecasting: a case study for Brazil"
+
 Aluno: Wolfgang Rowell
 Orientador: Lucas Kupssinskü, PhD
 
@@ -12,4 +13,5 @@ Descrição dos arquivos:
   - bypassei todas as seleções manuais de parâmetros desnecessários, deixei apenas 2: a seleção de carregar o dataset com os steps do groundtruth, e mais abaixo a seleção de quantos steps de treino/verificação;
   - a única etapa que está com os pesos liberados para aprender é o MLP do decoder (grid2mesh);
 
-**Tenho utilizado o GPU A100 High RAM, consegui rodar o treino do decoder com até 8 steps e verification 10 steps, com os demais pesos congelados.**
+- Uso o runtime do Colab Pro - GPU A100 High RAM
+- Consegui rodar no máximo o treino do decoder com até 8 steps e verification 10 steps sem ficar sem memória. Todos os demais pesos congelados.
