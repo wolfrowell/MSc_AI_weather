@@ -2,6 +2,7 @@
 Pesquisa de Mestrado em Ciência da Computação (PPGCC-PUCRS) - "AI weather forecasting: a case study for Brazil"
 
 Aluno: Wolfgang Rowell
+
 Orientador: Lucas Kupssinskü, PhD
 
 Descrição dos arquivos:
