@@ -1,5 +1,7 @@
 # ai_weather
 Pesquisa de Mestrado em Ciência da Computação (PPGCC-PUCRS) - "AI weather forecasting: a case study for Brazil"
+Aluno: Wolfgang Rowell
+Orientador: Lucas Kupssinskü, PhD
 
 Descrição dos arquivos:
 - graphcast_demo.ipynb - Versão original do Google Deepmind de demonstração de como carregar dados, gerar gráficos, gerar previsões e treinar o modelo.
