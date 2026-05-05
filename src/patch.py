@@ -1,11 +1,11 @@
 """Patches the pip-installed graphcast.py to support freeze_encoder / freeze_processor."""
 
 import importlib
+import importlib.util
 import inspect
 from pathlib import Path
 
-
-_GRAPHCAST_PATH = Path('/home/arthur/.local/lib/python3.10/site-packages/graphcast/graphcast.py')
+_GRAPHCAST_PATH = Path(importlib.util.find_spec("graphcast.graphcast").origin)
 
 _PATCHES = [
     {

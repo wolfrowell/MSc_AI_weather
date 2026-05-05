@@ -3,7 +3,7 @@
 Baselines
 ---------
 PersistenceBaseline : x̂(t + τ) = x(t)  — last available input, for all lead times.
-ZeroShotBaseline    : pre-trained GraphCast with no fine-tuning.
+PretrainedBaseline  : pre-trained GraphCast with no fine-tuning.
 """
 
 import numpy as np
@@ -40,7 +40,7 @@ class PersistenceBaseline:
         return xarray.concat(slices, dim="time")
 
 
-class ZeroShotBaseline:
+class PretrainedBaseline:
     """Runs the pre-trained GraphCast model with no fine-tuning.
 
     This is the most important baseline: if fine-tuning does not beat this,

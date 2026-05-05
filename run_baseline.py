@@ -5,7 +5,7 @@ and results/skill_scores.csv.
 
 Baselines computed
 ------------------
-1. graphcast_zero_shot : pre-trained GraphCast, no fine-tuning
+1. graphcast_pretrained : pre-trained GraphCast, no fine-tuning
 2. persistence          : x̂(t+τ) = x(t)
 
 Metrics (GraphCast paper, Verification Methods section)
@@ -32,7 +32,7 @@ from src.patch import GraphCastPatcher
 from src.data_loader import GCSDataLoader
 from src.finetuning import FrozenModuleStrategy
 from src.model import GraphCastModel
-from src.baselines import PersistenceBaseline, ZeroShotBaseline
+from src.baselines import PersistenceBaseline, PretrainedBaseline
 from src.evaluator import Evaluator
 
 
@@ -73,7 +73,11 @@ def main():
     example_batch = loader.load_dataset(dataset_file)
 
     # 4. Split — baselines only need eval split
-    eval_steps = args.eval_steps or (example_batch.sizes["time"] - 2)
+    max_eval_steps = example_batch.sizes["time"] - 2
+    eval_steps = min(args.eval_steps, max_eval_steps) if args.eval_steps else max_eval_steps
+    if args.eval_steps and args.eval_steps > max_eval_steps:
+        print(f"  Warning: --eval-steps {args.eval_steps} exceeds dataset capacity "
+              f"({max_eval_steps}), capping to {max_eval_steps}.")
     (
         _train_inputs, _train_targets, _train_forcings,
         eval_inputs, eval_targets, eval_forcings,
@@ -89,7 +93,7 @@ def main():
     # 5. Normalization stats
     diffs_stddev, mean_by_level, stddev_by_level = loader.load_normalization_stats()
 
-    # 6. Build model (strategy doesn't matter for zero-shot — we use all params)
+    # 6. Build model (strategy doesn't matter for pretrained — we use all params)
     strategy = FrozenModuleStrategy(preset="decoder")
     model = GraphCastModel(
         model_config=model_config,
@@ -113,11 +117,13 @@ def main():
     # 8. Evaluator
     evaluator = Evaluator(eval_targets, climatology=climatology)
 
-    # ── Baseline 1: GraphCast zero-shot ──────────────────────────────────────
-    print("\n[1/2] Running GraphCast zero-shot baseline...")
-    zero_shot = ZeroShotBaseline(model, params, state)
-    preds_zs = zero_shot.predict(eval_inputs, eval_targets, eval_forcings)
-    df_zs = evaluator.evaluate(preds_zs, name="graphcast_zero_shot")
+    # ── Baseline 1: GraphCast pretrained ──────────────────────────────────────
+    print("\n[1/2] Running GraphCast pretrained baseline...")
+    pretrained = PretrainedBaseline(model, params, state)
+    preds_zs = pretrained.predict(eval_inputs, eval_targets, eval_forcings)
+    preds_zs.to_netcdf(f"{RESULTS_DIR}/preds_graphcast_pretrained.nc")
+    print(f"  Predictions saved → {RESULTS_DIR}/preds_graphcast_pretrained.nc")
+    df_zs = evaluator.evaluate(preds_zs, name="graphcast_pretrained")
     print(f"  Done. {len(df_zs)} metric rows.")
 
     del preds_zs  # free GPU memory before next prediction
@@ -126,15 +132,21 @@ def main():
     print("\n[2/2] Computing persistence baseline...")
     persistence = PersistenceBaseline()
     preds_pers = persistence.predict(eval_inputs, eval_targets)
+    preds_pers.to_netcdf(f"{RESULTS_DIR}/preds_persistence.nc")
+    print(f"  Predictions saved → {RESULTS_DIR}/preds_persistence.nc")
     df_pers = evaluator.evaluate(preds_pers, name="persistence")
     print(f"  Done. {len(df_pers)} metric rows.")
+
+    # ── Save targets (needed for run_metrics.py) ──────────────────────────────
+    eval_targets.to_netcdf(f"{RESULTS_DIR}/eval_targets.nc")
+    print(f"\nTargets saved → {RESULTS_DIR}/eval_targets.nc")
 
     # ── Save results ──────────────────────────────────────────────────────────
     print()
     evaluator.save(f"{RESULTS_DIR}/baselines.csv")
     evaluator.save_skill_scores(
         f"{RESULTS_DIR}/skill_scores_zeroshot_vs_persistence.csv",
-        model_name="graphcast_zero_shot",
+        model_name="graphcast_pretrained",
         baseline_name="persistence",
     )
 
@@ -145,7 +157,7 @@ def main():
     print("Run run_training.py to fine-tune, then evaluate with:")
     print("  evaluator.evaluate(finetuned_predictions, name='finetuned_encoder')")
     print("  evaluator.save_skill_scores(..., model_name='finetuned_encoder',")
-    print("                              baseline_name='graphcast_zero_shot')")
+    print("                              baseline_name='graphcast_pretrained')")
 
 
 if __name__ == "__main__":

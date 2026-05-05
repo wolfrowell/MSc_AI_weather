@@ -91,39 +91,40 @@ def rmse(
     w = weights  # shape (lat,)
 
     for var in predictions.data_vars:
-        pred = predictions[var].values.astype(np.float32)  # (..., lat, lon)
-        tgt  = targets[var].values.astype(np.float32)
+        if var not in targets.data_vars:
+            continue
 
-        # Squeeze batch dim if present (batch=1 throughout)
-        if pred.ndim == 4:   # (time, batch, lat, lon)
-            pred = pred[:, 0]
-            tgt  = tgt[:, 0]
-        elif pred.ndim == 5:  # (time, batch, level, lat, lon)
-            pred = pred[:, 0]
-            tgt  = tgt[:, 0]
+        pred_da = predictions[var]
+        tgt_da  = targets[var]
 
-        # Pre-compute pressure level weights for 3-D variables
         lev_w = None
-        if pred.ndim == 4 and "level" in predictions[var].dims:  # (time, level, lat, lon)
-            lev_w = level_weights(predictions.coords["level"].values)  # (n_level,)
+        if "level" in pred_da.dims:
+            lev_w = level_weights(predictions.coords["level"].values)
 
-        n_times = pred.shape[0]
+        n_times = pred_da.sizes["time"]
         results[var] = {}
 
         for t in range(n_times):
             lead = predictions.coords["time"].values[t]
             lead_str = _lead_str(lead)
 
-            sq_err = (pred[t] - tgt[t]) ** 2  # (lat, lon) or (level, lat, lon)
+            pred_t = pred_da.isel(time=t)
+            tgt_t  = tgt_da.isel(time=t)
+            if "batch" in pred_t.dims:
+                pred_t = pred_t.isel(batch=0)
+            if "batch" in tgt_t.dims:
+                tgt_t = tgt_t.isel(batch=0)
 
-            if sq_err.ndim == 3:  # has pressure levels: (level, lat, lon)
-                # lat-weighted RMSE per level, then pressure-weighted mean over levels
+            sq_err = (pred_t.values.astype(np.float32)
+                      - tgt_t.values.astype(np.float32)) ** 2
+
+            if sq_err.ndim == 3:  # (level, lat, lon)
                 rmse_per_lev = np.sqrt(
                     (sq_err * w[None, :, None]).sum(axis=(1, 2))
                     / (w.sum() * sq_err.shape[-1])
                 )
                 rmse_val = float((rmse_per_lev * lev_w).sum() / lev_w.sum())
-            else:  # surface variable: (lat, lon)
+            else:  # (lat, lon)
                 weighted = (sq_err * w[:, None]).sum() / (w.sum() * sq_err.shape[-1])
                 rmse_val = float(np.sqrt(weighted))
 
@@ -146,16 +147,13 @@ def rmse_per_level(
     w = weights
 
     for var in predictions.data_vars:
-        pred = predictions[var].values.astype(np.float32)
-        tgt  = targets[var].values.astype(np.float32)
+        if var not in targets.data_vars:
+            continue
 
-        if "level" not in predictions[var].dims:
-            continue  # surface variable, skip
+        pred_da = predictions[var]
+        tgt_da  = targets[var]
 
-        if pred.ndim == 5:  # (time, batch, level, lat, lon)
-            pred = pred[:, 0]
-            tgt  = tgt[:, 0]
-        if pred.ndim != 4:  # (time, level, lat, lon)
+        if "level" not in pred_da.dims:
             continue
 
         levels = predictions.coords["level"].values
@@ -163,9 +161,18 @@ def rmse_per_level(
 
         for l_idx, level in enumerate(levels):
             results[var][int(level)] = {}
-            for t in range(pred.shape[0]):
+            for t in range(pred_da.sizes["time"]):
                 lead_str = _lead_str(predictions.coords["time"].values[t])
-                sq_err = (pred[t, l_idx] - tgt[t, l_idx]) ** 2  # (lat, lon)
+
+                pred_t = pred_da.isel(time=t, level=l_idx)
+                tgt_t  = tgt_da.isel(time=t, level=l_idx)
+                if "batch" in pred_t.dims:
+                    pred_t = pred_t.isel(batch=0)
+                if "batch" in tgt_t.dims:
+                    tgt_t = tgt_t.isel(batch=0)
+
+                sq_err = (pred_t.values.astype(np.float32)
+                          - tgt_t.values.astype(np.float32)) ** 2
                 weighted = (sq_err * w[:, None]).sum() / (w.sum() * sq_err.shape[-1])
                 results[var][int(level)][lead_str] = float(np.sqrt(weighted))
 

@@ -17,13 +17,13 @@ class Evaluator:
     -----
     ev = Evaluator(targets, climatology=clim)
 
-    df_gc    = ev.evaluate(predictions_graphcast,  name="graphcast_zero_shot")
+    df_gc    = ev.evaluate(predictions_graphcast,  name="graphcast_pretrained")
     df_pers  = ev.evaluate(predictions_persistence, name="persistence")
     df_ft    = ev.evaluate(predictions_finetuned,   name="finetuned_encoder")
 
     ev.save("results/baselines.csv")
     ev.save_skill_scores("results/skill_scores.csv", model_name="finetuned_encoder",
-                          baseline_name="graphcast_zero_shot")
+                          baseline_name="graphcast_pretrained")
     """
 
     def __init__(
