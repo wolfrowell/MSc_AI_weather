@@ -24,6 +24,7 @@ Usage
 import argparse
 import os
 import warnings
+from pathlib import Path
 
 os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
 warnings.filterwarnings("ignore")
@@ -56,6 +57,8 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    Path(RESULTS_DIR).mkdir(parents=True, exist_ok=True)
 
     # 1. Patch graphcast.py
     GraphCastPatcher().apply()
